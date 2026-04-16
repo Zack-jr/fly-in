@@ -5,14 +5,14 @@ PIP = $(VENV)/bin/pip
 
 all:
 	clear
-	python3 fly_in.py
+	python3 fly-in.py maps/easy/01_linear_path.txt
 
 install:
 	python3 -m venv $(VENV)
 	$(PIP) install -r requirements.txt
 
 run:
-	$(PYTHON) fly_in.py
+	$(PYTHON) fly-in.py 
 
 debug:
 	python3 -m pdb fly_in.py 

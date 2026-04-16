@@ -1,4 +1,4 @@
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, ValidationError, Field
 
 class Zone(BaseModel):
     name: str
@@ -19,6 +19,7 @@ class Zone(BaseModel):
 
         return self
 
+
 class Connection(BaseModel):
     zone1: str
     zone2: str
@@ -26,15 +27,25 @@ class Connection(BaseModel):
 
     @model_validator(mode="after")
     def validate_connection(self):
-        pass
+        if self.max_link_capacity < 0:
+            raise ValueError("max_link_capacity cannot be negative")
+        return self
 
 
 class Graph(BaseModel):
-    zones: dict[str, Zone]
-    connections: list[Connection]
+    zones: dict[str, Zone] = Field(default_factory=dict)
+    connections: list[Connection] = Field(default_factory=list)
+    drone_count: int = Field(default_factory=int)
 
+    #check si le graph possede le bon nombre de connections/zones?
     @model_validator(mode="after")
     def validate_graph(self):
+        if self.drone_count <= 0:
+            raise ValueError("Drone count cannot be less than or equal to 0.")
+        return self
+    
+    #calculer le cout de mouvement entre 2 zones
+    def calculate_movement_cost():
         pass
 
     ## avoir des fonctions pour ajouter au graph les
