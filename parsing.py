@@ -3,24 +3,27 @@ from models import Zone, Connection, Graph
 class Parser():
     def __init__(self, filename):
         self.filename = filename
-        self.start_hub = None
-        self.graph = Graph()
-
 
     def parse(self):
         with open(self.filename, 'r') as f:
+            connections = []
+            zones = []
+            drone_count = 0
+
             for line in f:
                 line = line.strip()
                 if line.startswith("#") or not line:
                     continue
                 result = self.parse_line(line)
                 if isinstance(result, int):
-                    self.graph.drone_count = result
+                    drone_count = result
                 if isinstance(result, Zone):
-                    self.graph.zones[result.name] = result
+                    zones.append(result)
                 elif isinstance(result, Connection):
-                    self.graph.connections.append(result)
-        return self.graph
+                    connections.append(result)
+            graph = Graph(zones=zones, connections=connections, drone_count=drone_count)
+
+        return graph
 
     @staticmethod
     def parse_line(line):
@@ -58,8 +61,11 @@ class Parser():
             else:
                 main = rest
                 capacity = 1
-            
-            zone1, zone2 = main.strip().split("-")
+
+                try:
+                    zone1, zone2 = main.strip().split("-")
+                except Exception:
+                    raise ValueError("connection name cannot contain '-' characters")
 
             return Connection(zone1=zone1, zone2=zone2, max_link_capacity=capacity)
 

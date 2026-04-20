@@ -7,7 +7,7 @@ class Zone(BaseModel):
     zone_type: str = "normal"
     color: str | None = None
     max_drones: int = 1
-    # start/end
+
     @model_validator(mode="after")
     def validate_zone(self):
         allowed = {"normal", "blocked", "restricted", "priority"}
@@ -29,13 +29,19 @@ class Connection(BaseModel):
     def validate_connection(self):
         if self.max_link_capacity < 0:
             raise ValueError("max_link_capacity cannot be negative")
+
         return self
 
+class Drone():
+    def __init__(self, drone_id: str):
+        self.ID = drone_id
+        self.position = None
 
 class Graph(BaseModel):
-    zones: dict[str, Zone] = Field(default_factory=dict)
+    zones: list[Zone] = Field(default_factory=list)
     connections: list[Connection] = Field(default_factory=list)
     drone_count: int = Field(default_factory=int)
+    drones: list = Field(default_factory=list, exclude=True)
 
     #check si le graph possede le bon nombre de connections/zones?
     @model_validator(mode="after")
@@ -43,10 +49,22 @@ class Graph(BaseModel):
         if self.drone_count <= 0:
             raise ValueError("Drone count cannot be less than or equal to 0.")
         return self
-    
-    #calculer le cout de mouvement entre 2 zones
+
+    def create_drones(self) -> None:
+
+        for i in range(1, self.drone_count + 1):
+            self.drones.append(Drone(f"D{i}"))
+
+    def simulate(self):
+        self.create_drones()
+
+
+
+
+    @staticmethod
     def calculate_movement_cost():
         pass
+
 
     ## avoir des fonctions pour ajouter au graph les
     ## zones, drones et connections pour creer un vraie object utilisable
