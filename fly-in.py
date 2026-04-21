@@ -25,7 +25,7 @@ def main():
             else:
                 print(f"Error during parsing: {e}")
                 return
-            
+
 
 if __name__ == '__main__':
     main()

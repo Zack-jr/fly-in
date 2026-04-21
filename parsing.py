@@ -21,6 +21,7 @@ class Parser():
                     zones.append(result)
                 elif isinstance(result, Connection):
                     connections.append(result)
+
             graph = Graph(zones=zones, connections=connections, drone_count=drone_count)
 
         return graph

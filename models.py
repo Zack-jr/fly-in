@@ -58,8 +58,8 @@ class Graph(BaseModel):
     def simulate(self):
         self.create_drones()
 
-
-
+        for drone in self.drones:
+            drone.position = zones.
 
     @staticmethod
     def calculate_movement_cost():
