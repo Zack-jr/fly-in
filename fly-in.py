@@ -13,8 +13,6 @@ def main():
         try:
             graph = Parser(argv[1]).parse()
             graph.simulate()
-            for drone in graph.drones:
-                print(drone.ID)
 
         except (ValueError, ValidationError) as e:
 

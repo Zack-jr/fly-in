@@ -7,6 +7,7 @@ class Zone(BaseModel):
     zone_type: str = "normal"
     color: str | None = None
     max_drones: int = 1
+    hub_type: str
 
     @model_validator(mode="after")
     def validate_zone(self):
@@ -35,10 +36,10 @@ class Connection(BaseModel):
 class Drone():
     def __init__(self, drone_id: str):
         self.ID = drone_id
-        self.position = None
+        self.position = Zone
 
 class Graph(BaseModel):
-    zones: list[Zone] = Field(default_factory=list)
+    zones: dict[str, Zone] = Field(default_factory=dict)
     connections: list[Connection] = Field(default_factory=list)
     drone_count: int = Field(default_factory=int)
     drones: list = Field(default_factory=list, exclude=True)
@@ -50,16 +51,21 @@ class Graph(BaseModel):
             raise ValueError("Drone count cannot be less than or equal to 0.")
         return self
 
+    #initialiser les drones en position start_hub
     def create_drones(self) -> None:
 
         for i in range(1, self.drone_count + 1):
             self.drones.append(Drone(f"D{i}"))
 
-    def simulate(self):
-        self.create_drones()
+        starting_hub = self.zones["start_hub"]
 
         for drone in self.drones:
-            drone.position = zones.
+            drone.position = starting_hub
+
+    def simulate(self):
+        self.create_drones()
+        for drone in self.drones:
+            print(drone.position.name)
 
     @staticmethod
     def calculate_movement_cost():

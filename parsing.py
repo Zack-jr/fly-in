@@ -7,7 +7,7 @@ class Parser():
     def parse(self):
         with open(self.filename, 'r') as f:
             connections = []
-            zones = []
+            zones = {}
             drone_count = 0
 
             for line in f:
@@ -18,7 +18,7 @@ class Parser():
                 if isinstance(result, int):
                     drone_count = result
                 if isinstance(result, Zone):
-                    zones.append(result)
+                    zones[result.hub_type] = result
                 elif isinstance(result, Connection):
                     connections.append(result)
 
@@ -32,7 +32,7 @@ class Parser():
         if line.startswith("nb_drones"):
             return int(line.split(":")[1].strip())
         if line.startswith("start_hub") or line.startswith("end_hub") or line.startswith("hub"):
-            _prefix, rest  = line.split(":")
+            prefix, rest  = line.split(":")
             if "[" in rest:
                 main, meta = rest.split("[")
                 meta = meta.strip("]")
@@ -48,7 +48,7 @@ class Parser():
                 key, value = item.split("=")
                 meta_dict[key] = value
 
-            return Zone(name=name, x=x, y=y, color=meta_dict.get("color", None), max_drones=meta_dict.get("max_drones", 1))
+            return Zone(hub_type=prefix, name=name, x=x, y=y, color=meta_dict.get("color", None), max_drones=meta_dict.get("max_drones", 1))
 
         if line.startswith("connection"):
             _, rest = line.split(":", 1)
