@@ -62,15 +62,27 @@ class Graph(BaseModel):
         for drone in self.drones:
             drone.position = starting_hub
 
+    def get_neighbors(self, zone) -> list[Zone]:
+        
+        neighbors = []
+
+        for connection in self.connections:
+            if connection.zone1 == zone.name:
+                neighbors.append(self.zones[connection.zone2])
+            if connection.zone2 == zone.name:
+                neighbors.append(self.zones[connection.zone1])
+        return neighbors
+
+    # commencer la simulation
+    # besoin des neighbors
     def simulate(self):
+
         self.create_drones()
-        for drone in self.drones:
-            print(drone.position.name)
+        print(self.get_neighbors(self.zones["start"]))
 
     @staticmethod
     def calculate_movement_cost():
         pass
 
 
-    ## avoir des fonctions pour ajouter au graph les
-    ## zones, drones et connections pour creer un vraie object utilisable
+# PROBLEME = ACCEDER AU DICT SANS LA STRING VARIABLE

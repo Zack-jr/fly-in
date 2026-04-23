@@ -18,7 +18,7 @@ class Parser():
                 if isinstance(result, int):
                     drone_count = result
                 if isinstance(result, Zone):
-                    zones[result.hub_type] = result
+                    zones[result.zone_type] = result
                 elif isinstance(result, Connection):
                     connections.append(result)
 
