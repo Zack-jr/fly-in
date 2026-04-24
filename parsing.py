@@ -1,9 +1,13 @@
 from models import Zone, Connection, Graph
 
 class Parser():
+    # READS THE .TXT FILES
+    # THIS CLASS'S GOAL IS TO RETURN A VALID GRAPH
+
     def __init__(self, filename):
         self.filename = filename
 
+    # READ FROM THE FILE AND CREATE A GRAPH WITH CORRESPONDING ATTRIBUTES
     def parse(self):
         with open(self.filename, 'r') as f:
             connections = []
@@ -18,14 +22,20 @@ class Parser():
                 if isinstance(result, int):
                     drone_count = result
                 if isinstance(result, Zone):
-                    zones[result.zone_type] = result
+                    zones[result.name] = result
+                    if result.hub_type == "start_hub":
+                        start_hub = result
+                    if result.hub_type == "end_hub":
+                        end_hub = result
                 elif isinstance(result, Connection):
                     connections.append(result)
 
-            graph = Graph(zones=zones, connections=connections, drone_count=drone_count)
+            graph = Graph(zones=zones, connections=connections, drone_count=drone_count, start_hub=start_hub, end_hub=end_hub)
 
         return graph
 
+
+    # PARSE A GIVEN LINE AND RETURNS A ZONE OR A CONNECTION
     @staticmethod
     def parse_line(line):
         meta_dict = {}

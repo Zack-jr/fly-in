@@ -17,8 +17,8 @@ def main():
         except (ValueError, ValidationError) as e:
 
             if isinstance(e, ValidationError):
-                msg = e.errors()[0]['msg'].strip("Value error, ")
-                print(f"Error during parsing: {msg}")
+            ##    msg = e.errors()[0]['msg'].strip("Value error, ")
+                print(f"Error during parsing: {e}")
                 return
             else:
                 print(f"Error during parsing: {e}")
