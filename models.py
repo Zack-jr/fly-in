@@ -96,4 +96,47 @@ class Graph(BaseModel):
         pass
 
 
-# PROBLEME = ACCEDER AU DICT SANS LA STRING VARIABLE
+# 1. PATHFINDING
+#   -implement dijkstra
+#   -respect costs
+#   output: one path start -> end
+
+# 2. GENERATE MULTIPLE PATHS
+#   -Run Djikstra multiple times
+#   - slightly penalize used nodes/edges
+#   - keep 2-4 different paths
+
+# 3. ASSIGN DRONES
+#   -Distribute drones across paths:
+#       ex: drone.path = paths[i % len(path)]
+
+# 4. DRONE STATE
+#   - each drone needs an index, remaining turns
+
+# 5. SIMULATION LOOP
+#   for each turn, plan moves -> apply moves -> print output
+
+# 6. MOVEMENT RULE (per drone)
+#   - Move only if:
+#       - zone has space
+#       - connection has capacity
+#   - else -> wait
+
+# 7. CONSTRAINTS (must-have)
+#   - zone capacity
+#   - connection capacity
+
+# 8. RESTRICTED ZONES
+#   - movement takes two turns
+#   - cannot stop mid-way
+
+# 9. APPLY MOVES SAFELY
+#   - don't move instantly 
+#   - first: decide all moves
+#   - then: apply all together
+
+# 10. BASIC optimization
+#   - Don't release all drones at once
+#   - Send them gradually(avoid congestion)
+
+# Paths -> Assign -> Simulate with constraints
