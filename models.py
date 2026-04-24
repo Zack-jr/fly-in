@@ -72,6 +72,7 @@ class Graph(BaseModel):
 
         for drone in self.drones:
             drone.position = starting_hub.name
+            print(f"Drone:{drone.ID} starting in position: {drone.position}")
 
     # GET NEIGHBORING ZONES FOR A SPECIFIC ZONE
     def get_neighbors(self, zone) -> list[Zone]:
@@ -84,12 +85,11 @@ class Graph(BaseModel):
                 neighbors.append(self.zones[connection.zone1])
         return neighbors
 
-
     # SIMULATE DRONE ROUTE
     def simulate(self):
 
         self.create_drones()
-        print(self.get_neighbors(self.zones["waypoint2"]))
+        #print(self.get_neighbors(self.zones["waypoint2"]))
 
     @staticmethod
     def calculate_movement_cost():
