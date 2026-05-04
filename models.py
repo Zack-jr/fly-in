@@ -1,5 +1,5 @@
 from pydantic import BaseModel, model_validator, ValidationError, Field
-
+from heapq import heapq
 
 # ZONE (OR HUB) INSIDE THE GRAPH
 # DRONES NAVIGATE THROUGH ZONES
@@ -93,6 +93,9 @@ class Graph(BaseModel):
 
     @staticmethod
     def calculate_movement_cost():
+        pass
+    
+    def dijkstra(self):
         pass
 
 
