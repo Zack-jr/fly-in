@@ -21,12 +21,14 @@ class Parser():
                 result = self.parse_line(line)
                 if isinstance(result, int):
                     drone_count = result
+    
                 if isinstance(result, Zone):
                     zones[result.name] = result
                     if result.hub_type == "start_hub":
                         start_hub = result
                     if result.hub_type == "end_hub":
                         end_hub = result
+    
                 elif isinstance(result, Connection):
                     connections.append(result)
 

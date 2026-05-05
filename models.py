@@ -1,5 +1,7 @@
 from pydantic import BaseModel, model_validator, ValidationError, Field
-from heapq import heapq
+from collections import defaultdict
+from typing import List
+import heapq
 
 # ZONE (OR HUB) INSIDE THE GRAPH
 # DRONES NAVIGATE THROUGH ZONES
@@ -41,7 +43,8 @@ class Connection(BaseModel):
 class Drone():
     def __init__(self, drone_id: str):
         self.ID = drone_id
-        self.position = Zone
+        self.position = None
+        self.path = None
 
 
 # ENTIRE GRAPH STRUCTURE
@@ -52,6 +55,7 @@ class Graph(BaseModel):
     connections: list[Connection] = Field(default_factory=list)
     drone_count: int = Field(default_factory=int)
     drones: list = Field(default_factory=list, exclude=True)
+    adjacency = dict[str, list[Zone]] = Field(default_factory=dict)
     start_hub: Zone
     end_hub: Zone
 
@@ -60,6 +64,9 @@ class Graph(BaseModel):
     def validate_graph(self):
         if self.drone_count <= 0:
             raise ValueError("Drone count cannot be less than or equal to 0.")
+
+        self.adjacency_maker()
+
         return self
 
     # CREATE AND INITIALIZE ZONES IN START HUB POSITION
@@ -76,14 +83,19 @@ class Graph(BaseModel):
 
     # GET NEIGHBORING ZONES FOR A SPECIFIC ZONE
     def get_neighbors(self, zone) -> list[Zone]:
-        
-        neighbors = []
+        return self.adjacency[zone.name]
+
+    def adjacency_maker(self) -> None:
+
+        # automatically initializes keys
+        adjacency_dict = defaultdict(list)
+    
+        # loop through the connections to create a dict of node: neighboring nodes
         for connection in self.connections:
-            if connection.zone1 == zone.name:
-                neighbors.append(self.zones[connection.zone2])
-            if connection.zone2 == zone.name:
-                neighbors.append(self.zones[connection.zone1])
-        return neighbors
+            self.adjacency_dict[connection.zone1].append(self.zones[connection.zone2])
+            self.adjacency_dict[connection.zone2].append(self.zones[connection.zone1])
+
+        self.adjacency = adjacency_dict
 
     # SIMULATE DRONE ROUTE
     def simulate(self):
@@ -95,9 +107,17 @@ class Graph(BaseModel):
     def calculate_movement_cost():
         pass
     
-    def dijkstra(self):
-        pass
+    # FINDS SHORTEST PATH FROM ENTRY TO EXIT
+    def dijkstra(self, start : Zone, end: Zone) -> List[Zone]:
 
+        unvisited_nodes = self.zones
+        visited_nodes = []
+    
+        #Pick the unvisited node with smallest distance from start
+
+        #For each unvisited neighbor, calculate the cost to reach it through current node - if it's better than what we knew, update it
+
+        #Mark current node as visited (never revisit it)
 
 # 1. PATHFINDING
 #   -implement dijkstra
