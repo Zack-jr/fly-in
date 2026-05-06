@@ -1,7 +1,18 @@
 from pydantic import BaseModel, model_validator, ValidationError, Field
 from collections import defaultdict
 from typing import List
+from enum import Enum
 import heapq
+
+
+# ASSIGN A COST TO EACH ZONE_TYPE
+# PYDANTIC WILL CONVERT STR INTO ENUM
+class ZoneType(Enum):
+    normal = 1
+    priority = 1
+    restricted = 2
+    blocked = float('inf')
+
 
 # ZONE (OR HUB) INSIDE THE GRAPH
 # DRONES NAVIGATE THROUGH ZONES
@@ -9,21 +20,19 @@ class Zone(BaseModel):
     name: str
     x: int
     y: int
-    zone_type: str = "normal"
+    zone_type: ZoneType = ZoneType.normal
     color: str | None = None
     max_drones: int = 1
     hub_type: str
 
     @model_validator(mode="after")
     def validate_zone(self):
-        allowed = {"normal", "blocked", "restricted", "priority"}
-        if self.zone_type not in allowed:
-            raise ValueError(f"Invalid zone type: {self.zone_type}.")
-        
         if self.max_drones < 0:
             raise ValueError(f"Invalid max_drones count: {self.max_drones}.")
-
         return self
+
+    def calculate_movement_cost(self):
+        return self.zone_type.value
 
 #   CONNECTION (LINKS) BETWEEN ZONES
 class Connection(BaseModel):
@@ -45,6 +54,7 @@ class Drone():
         self.ID = drone_id
         self.position = None
         self.path = None
+
 
 
 # ENTIRE GRAPH STRUCTURE
@@ -103,16 +113,57 @@ class Graph(BaseModel):
         self.create_drones()
         #print(self.get_neighbors(self.zones["waypoint2"]))
 
-    @staticmethod
-    def calculate_movement_cost():
-        pass
     
     # FINDS SHORTEST PATH FROM ENTRY TO EXIT
     def dijkstra(self, start : Zone, end: Zone) -> List[Zone]:
 
-        unvisited_nodes = self.zones
-        visited_nodes = []
-    
+        distances = {}
+        path = []
+        heap = [(0, start.name)]
+        came_from : dict[str, str] = {}
+
+
+        for name in self.zones.keys():
+            distances[name] = float('inf')
+
+        distances[start.name] = 0
+
+        while heap:
+            current_cost, current_name = heapq.heappop(heap)
+
+            # if we reached the end
+            if current_name == end.name:
+                break
+
+            # for every neighbor of the current zone
+            for neighbor in self.adjacency[current_name]:
+                new_cost = current_cost + neighbor.calculate_movement_cost()
+
+                # if new cost is better than previous cost
+                if new_cost < distances[neighbor.name]:
+                    distances[neighbor.name] = new_cost
+                    heapq.heappush(heap, (new_cost, neighbor.name))
+                    came_from[neighbor.name] = current_name
+
+
+            # NEED TO HANDLE BLOCKED ZONES
+        if end.name not in came_from:
+            raise ValueError(f"No path found from {start.name} to {end.name}")
+
+        #PATH RECONSTRUCTION
+        current = end
+        if current is None:
+            return
+
+        while current.name != start.name:
+            path.append(current)
+            current = self.zones[came_from[current.name]]
+
+        path.append(start)
+        path.reverse()
+
+        return path
+
         #Pick the unvisited node with smallest distance from start
 
         #For each unvisited neighbor, calculate the cost to reach it through current node - if it's better than what we knew, update it
