@@ -24,6 +24,7 @@ class Zone(BaseModel):
     color: str | None = None
     max_drones: int = 1
     hub_type: str
+    current_drones: int = 0
 
     @model_validator(mode="after")
     def validate_zone(self):
@@ -31,7 +32,7 @@ class Zone(BaseModel):
             raise ValueError(f"Invalid max_drones count: {self.max_drones}.")
         return self
 
-    def calculate_movement_cost(self):
+    def get_movement_cost(self):
         return self.zone_type.value
 
 #   CONNECTION (LINKS) BETWEEN ZONES
@@ -52,8 +53,10 @@ class Connection(BaseModel):
 class Drone():
     def __init__(self, drone_id: str):
         self.ID = drone_id
-        self.position = None
-        self.path = None
+        self.position = ""
+        self.path : List[Zone] = []
+        self.delivered : bool = False
+        self.path_index : int = 0
 
 
 
@@ -65,7 +68,7 @@ class Graph(BaseModel):
     connections: list[Connection] = Field(default_factory=list)
     drone_count: int = Field(default_factory=int)
     drones: list = Field(default_factory=list, exclude=True)
-    adjacency = dict[str, list[Zone]] = Field(default_factory=dict)
+    adjacency : dict[str, list[Zone]] = Field(default_factory=dict)
     start_hub: Zone
     end_hub: Zone
 
@@ -75,8 +78,8 @@ class Graph(BaseModel):
         if self.drone_count <= 0:
             raise ValueError("Drone count cannot be less than or equal to 0.")
 
+        self.end_hub.max_drones = float('inf')
         self.adjacency_maker()
-
         return self
 
     # CREATE AND INITIALIZE ZONES IN START HUB POSITION
@@ -85,11 +88,9 @@ class Graph(BaseModel):
         for i in range(1, self.drone_count + 1):
             self.drones.append(Drone(f"D{i}"))
 
-        starting_hub = self.start_hub
-
         for drone in self.drones:
-            drone.position = starting_hub.name
-            print(f"Drone:{drone.ID} starting in position: {drone.position}")
+            drone.position = self.start_hub.name
+            drone.path = self.dijkstra(self.start_hub, self.end_hub)
 
     # GET NEIGHBORING ZONES FOR A SPECIFIC ZONE
     def get_neighbors(self, zone) -> list[Zone]:
@@ -99,19 +100,48 @@ class Graph(BaseModel):
 
         # automatically initializes keys
         adjacency_dict = defaultdict(list)
-    
+
         # loop through the connections to create a dict of node: neighboring nodes
         for connection in self.connections:
-            self.adjacency_dict[connection.zone1].append(self.zones[connection.zone2])
-            self.adjacency_dict[connection.zone2].append(self.zones[connection.zone1])
+            adjacency_dict[connection.zone1].append(self.zones[connection.zone2])
+            adjacency_dict[connection.zone2].append(self.zones[connection.zone1])
 
         self.adjacency = adjacency_dict
 
-    # SIMULATE DRONE ROUTE
-    def simulate(self):
 
+    # SIMULATE DRONE ROUTE
+    def simulate(self) -> None:
+
+        turn_movements = ""
         self.create_drones()
-        #print(self.get_neighbors(self.zones["waypoint2"]))
+
+        # while the drones are not all delivered
+        while not all(drone.delivered for drone in self.drones):
+
+            # for every drone
+            for drone in self.drones:
+
+                # if it's delivered -> skip
+                if drone.delivered:
+                    continue
+
+                previous_zone = drone.path[drone.path_index]
+                next_zone = drone.path[drone.path_index + 1]
+
+                if next_zone.current_drones < next_zone.max_drones:
+                    drone.position = next_zone.name
+                    drone.path_index += 1
+                    next_zone.current_drones += 1
+                    previous_zone.current_drones -= 1
+                    turn_movements += (f"{drone.ID} - {drone.position}")
+
+                    if drone.position == self.end_hub.name:
+                        drone.delivered = True
+                else:
+                    continue
+
+            print(turn_movements)
+            turn_movements = ""
 
     
     # FINDS SHORTEST PATH FROM ENTRY TO EXIT
@@ -123,9 +153,11 @@ class Graph(BaseModel):
         came_from : dict[str, str] = {}
 
 
+        # ASSIGN A COST TO EACH DISTANCE
         for name in self.zones.keys():
             distances[name] = float('inf')
 
+        # STARTING ZONE IS 0 COST
         distances[start.name] = 0
 
         while heap:
@@ -137,7 +169,13 @@ class Graph(BaseModel):
 
             # for every neighbor of the current zone
             for neighbor in self.adjacency[current_name]:
-                new_cost = current_cost + neighbor.calculate_movement_cost()
+        
+                # skip this iteration if zone is blocked
+                if neighbor.zone_type == ZoneType.blocked:
+                    continue
+
+                # get cost for movement to neighbor
+                new_cost = current_cost + neighbor.get_movement_cost()
 
                 # if new cost is better than previous cost
                 if new_cost < distances[neighbor.name]:
@@ -146,14 +184,12 @@ class Graph(BaseModel):
                     came_from[neighbor.name] = current_name
 
 
-            # NEED TO HANDLE BLOCKED ZONES
+        # CHECK IF THE END HAS BEEN FOUND AND IS IN THE KEYS
         if end.name not in came_from:
             raise ValueError(f"No path found from {start.name} to {end.name}")
 
         #PATH RECONSTRUCTION
         current = end
-        if current is None:
-            return
 
         while current.name != start.name:
             path.append(current)
@@ -164,11 +200,6 @@ class Graph(BaseModel):
 
         return path
 
-        #Pick the unvisited node with smallest distance from start
-
-        #For each unvisited neighbor, calculate the cost to reach it through current node - if it's better than what we knew, update it
-
-        #Mark current node as visited (never revisit it)
 
 # 1. PATHFINDING
 #   -implement dijkstra
