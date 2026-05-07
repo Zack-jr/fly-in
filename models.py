@@ -133,7 +133,7 @@ class Graph(BaseModel):
                     drone.path_index += 1
                     next_zone.current_drones += 1
                     previous_zone.current_drones -= 1
-                    turn_movements += (f"{drone.ID} - {drone.position}")
+                    turn_movements += (f"{drone.ID}-{drone.position} ")
 
                     if drone.position == self.end_hub.name:
                         drone.delivered = True
