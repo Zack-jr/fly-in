@@ -78,7 +78,7 @@ class Graph(BaseModel):
         if self.drone_count <= 0:
             raise ValueError("Drone count cannot be less than or equal to 0.")
 
-        self.end_hub.max_drones = float('inf')
+        self.end_hub.max_drones = self.drone_count
         self.adjacency_maker()
         return self
 
