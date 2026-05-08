@@ -85,12 +85,16 @@ class Graph(BaseModel):
     # CREATE AND INITIALIZE ZONES IN START HUB POSITION
     def create_drones(self) -> None:
 
+        used_zones : set[str] = set()
+
         for i in range(1, self.drone_count + 1):
             self.drones.append(Drone(f"D{i}"))
 
         for drone in self.drones:
             drone.position = self.start_hub.name
-            drone.path = self.dijkstra(self.start_hub, self.end_hub)
+            drone.path = self.dijkstra(self.start_hub, self.end_hub, used_zones)
+            for zone in drone.path[1:-1]:
+                used_zones.add(zone.name)
 
     # GET NEIGHBORING ZONES FOR A SPECIFIC ZONE
     def get_neighbors(self, zone) -> list[Zone]:
@@ -112,6 +116,7 @@ class Graph(BaseModel):
     # SIMULATE DRONE ROUTE
     def simulate(self) -> None:
 
+        turn_count = 0
         turn_movements = ""
         self.create_drones()
 
@@ -128,6 +133,7 @@ class Graph(BaseModel):
                 previous_zone = drone.path[drone.path_index]
                 next_zone = drone.path[drone.path_index + 1]
 
+                # if the next zone has the capacity
                 if next_zone.current_drones < next_zone.max_drones:
                     drone.position = next_zone.name
                     drone.path_index += 1
@@ -141,11 +147,12 @@ class Graph(BaseModel):
                     continue
 
             print(turn_movements)
+            turn_count += 1
             turn_movements = ""
-
+        print(f"Number of turns: {turn_count}\n")
     
     # FINDS SHORTEST PATH FROM ENTRY TO EXIT
-    def dijkstra(self, start : Zone, end: Zone) -> List[Zone]:
+    def dijkstra(self, start : Zone, end: Zone, used_zones: set[str] | None) -> List[Zone]:
 
         distances = {}
         path = []
@@ -153,6 +160,9 @@ class Graph(BaseModel):
         came_from : dict[str, str] = {}
 
 
+        if used_zones is None:
+            used_zones = set()
+            
         # ASSIGN A COST TO EACH DISTANCE
         for name in self.zones.keys():
             distances[name] = float('inf')
@@ -176,6 +186,8 @@ class Graph(BaseModel):
 
                 # get cost for movement to neighbor
                 new_cost = current_cost + neighbor.get_movement_cost()
+                if neighbor.name in used_zones:
+                    new_cost += 1
 
                 # if new cost is better than previous cost
                 if new_cost < distances[neighbor.name]:
