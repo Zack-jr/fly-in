@@ -74,11 +74,10 @@ class Parser():
             else:
                 main = rest
                 capacity = 1
-
-                try:
-                    zone1, zone2 = main.strip().split("-")
-                except Exception:
-                    raise ValueError("connection name cannot contain '-' characters")
+            try:
+                zone1, zone2 = main.strip().split("-")
+            except Exception:
+                raise ValueError("connection name cannot contain '-' characters")
 
             return Connection(zone1=zone1, zone2=zone2, max_link_capacity=capacity)
 
