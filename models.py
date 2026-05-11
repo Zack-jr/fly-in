@@ -2,6 +2,7 @@ from pydantic import BaseModel, model_validator, ValidationError, Field
 from collections import defaultdict
 from typing import List
 from enum import Enum
+from itertools import cycle
 import heapq
 
 
@@ -40,6 +41,7 @@ class Connection(BaseModel):
     zone1: str
     zone2: str
     max_link_capacity: int = 1
+    current_drones: int = 0
 
     @model_validator(mode="after")
     def validate_connection(self):
@@ -69,6 +71,7 @@ class Graph(BaseModel):
     drone_count: int = Field(default_factory=int)
     drones: list = Field(default_factory=list, exclude=True)
     adjacency : dict[str, list[Zone]] = Field(default_factory=dict)
+    connection_map: dict[tuple[str, str], Connection] = Field(default_factory=dict)
     start_hub: Zone
     end_hub: Zone
 
@@ -82,35 +85,66 @@ class Graph(BaseModel):
         self.adjacency_maker()
         return self
 
+    def find_paths(self) -> List[str]:
+        
+        used_zones : set[str] = set()
+        paths = []
+
+        # loop until we find the same path twice
+        while True:
+
+            path = self.dijkstra(self.start_hub, self.end_hub, used_zones)
+            paths_names = [z.name for z in path]
+    
+            # break if we find the same path twice
+            if paths_names in paths:
+                break
+        
+            paths.append(paths_names)
+            for zone in paths[1:-1]:
+                used_zones.add(zone.name)
+
+        return paths
+
     # CREATE AND INITIALIZE ZONES IN START HUB POSITION
     def create_drones(self) -> None:
 
         used_zones : set[str] = set()
+        path = self.find_paths()
+        path_cycle = cycle(path)
 
         for i in range(1, self.drone_count + 1):
             self.drones.append(Drone(f"D{i}"))
 
+        #  assign path and position for drones
+        # convert string into zone using dict
         for drone in self.drones:
+            path_names = next(path_cycle)
+            drone.path = [self.zones[name] for name in path_names]
             drone.position = self.start_hub.name
-            drone.path = self.dijkstra(self.start_hub, self.end_hub, used_zones)
-            for zone in drone.path[1:-1]:
-                used_zones.add(zone.name)
+            print(f"{drone.ID} path: {[z.name for z in drone.path]}")
 
     # GET NEIGHBORING ZONES FOR A SPECIFIC ZONE
     def get_neighbors(self, zone) -> list[Zone]:
         return self.adjacency[zone.name]
 
+    # CREATES DICTS WITH NEIGHBORING ZONES FOR EASY LOOKUP
     def adjacency_maker(self) -> None:
 
         # automatically initializes keys
         adjacency_dict = defaultdict(list)
+        connection_dict : dict[tuple[str, str], Connection] = {}
 
         # loop through the connections to create a dict of node: neighboring nodes
+        # and a dict of connections
         for connection in self.connections:
             adjacency_dict[connection.zone1].append(self.zones[connection.zone2])
             adjacency_dict[connection.zone2].append(self.zones[connection.zone1])
+            key = tuple(sorted([connection.zone1, connection.zone2]))
+            connection_dict[key] = connection
 
         self.adjacency = adjacency_dict
+        self.connection_map = connection_dict
 
 
     # SIMULATE DRONE ROUTE
@@ -123,9 +157,13 @@ class Graph(BaseModel):
         # while the drones are not all delivered
         while not all(drone.delivered for drone in self.drones):
 
+
+            # set every connection drone count to 0 every turn
+            for conn in self.connections:
+                conn.current_drones = 0
             # for every drone
             for drone in self.drones:
-
+                
                 # if it's delivered -> skip
                 if drone.delivered:
                     continue
@@ -133,8 +171,14 @@ class Graph(BaseModel):
                 previous_zone = drone.path[drone.path_index]
                 next_zone = drone.path[drone.path_index + 1]
 
-                # if the next zone has the capacity
-                if next_zone.current_drones < next_zone.max_drones:
+                # get connection dict access by reference
+                key = tuple(sorted([previous_zone.name, next_zone.name]))
+                connection = self.connection_map[key]
+
+                # if the next zone has the capacity and the connection allows it
+                if (connection.current_drones < connection.max_link_capacity
+                    and next_zone.current_drones < next_zone.max_drones):
+                    connection.current_drones += 1
                     drone.position = next_zone.name
                     drone.path_index += 1
                     next_zone.current_drones += 1
@@ -143,6 +187,8 @@ class Graph(BaseModel):
 
                     if drone.position == self.end_hub.name:
                         drone.delivered = True
+
+                # NEED TO HANDLE CONNECTIONS
                 else:
                     continue
 
@@ -150,7 +196,7 @@ class Graph(BaseModel):
             turn_count += 1
             turn_movements = ""
         print(f"Number of turns: {turn_count}\n")
-    
+
     # FINDS SHORTEST PATH FROM ENTRY TO EXIT
     def dijkstra(self, start : Zone, end: Zone, used_zones: set[str] | None) -> List[Zone]:
 
@@ -158,7 +204,6 @@ class Graph(BaseModel):
         path = []
         heap = [(0, start.name)]
         came_from : dict[str, str] = {}
-
 
         if used_zones is None:
             used_zones = set()
@@ -212,47 +257,6 @@ class Graph(BaseModel):
 
         return path
 
-
-# 1. PATHFINDING
-#   -implement dijkstra
-#   -respect costs
-#   output: one path start -> end
-
-# 2. GENERATE MULTIPLE PATHS
-#   -Run Djikstra multiple times
-#   - slightly penalize used nodes/edges
-#   - keep 2-4 different paths
-
-# 3. ASSIGN DRONES
-#   -Distribute drones across paths:
-#       ex: drone.path = paths[i % len(path)]
-
-# 4. DRONE STATE
-#   - each drone needs an index, remaining turns
-
-# 5. SIMULATION LOOP
-#   for each turn, plan moves -> apply moves -> print output
-
-# 6. MOVEMENT RULE (per drone)
-#   - Move only if:
-#       - zone has space
-#       - connection has capacity
-#   - else -> wait
-
-# 7. CONSTRAINTS (must-have)
-#   - zone capacity
-#   - connection capacity
-
-# 8. RESTRICTED ZONES
-#   - movement takes two turns
-#   - cannot stop mid-way
-
-# 9. APPLY MOVES SAFELY
-#   - don't move instantly 
-#   - first: decide all moves
-#   - then: apply all together
-
-# 10. BASIC optimization
 #   - Don't release all drones at once
 #   - Send them gradually(avoid congestion)
 

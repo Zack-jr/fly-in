@@ -30,6 +30,10 @@ hard:
 	python3 fly-in.py maps/hard/02_capacity_hell.txt
 	python3 fly-in.py maps/hard/03_ultimate_challenge.txt
 
+
+challenger:
+	python3 fly-in.py maps/challenger/01_the_impossible_dream.txt
+
 debug:
 	python3 -m pdb fly_in.py 
 
