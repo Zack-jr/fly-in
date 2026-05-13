@@ -84,6 +84,7 @@ class Drone():
         self.path_index : int = 0
         self.in_transit: bool = False
         self.transit_destination : Zone = None
+        self.moved_this_turn : bool = False
 
 
 
@@ -126,7 +127,7 @@ class Graph(BaseModel):
                 break
         
             paths.append(paths_names)
-            for zone in paths[1:-1]:
+            for zone in path[1:-1]:
                 used_zones.add(zone.name)
 
         return paths
@@ -188,6 +189,8 @@ class Graph(BaseModel):
             for zone in self.zones.values():
                 zone.current_drones = 0
 
+            for drone in self.drones:
+                drone.moved_this_turn = False
 
             # for every drone
             for drone in self.drones:
@@ -199,16 +202,14 @@ class Graph(BaseModel):
                     else:
                         self.zones[drone.position].current_drones += 1
     
-
                 # if we reached the end for a drone, continue
-
 
 
             for drone in self.drones:
 
-                if drone.delivered or not drone.in_transit:
+                if drone.delivered or not drone.in_transit or drone.moved_this_turn:
                     continue
-                
+
                 previous_zone = drone.path[drone.path_index]
                 next_zone = drone.path[drone.path_index + 1]
 
@@ -225,11 +226,12 @@ class Graph(BaseModel):
 
                     if drone.position == self.end_hub.name:
                         drone.delivered = True
+                    drone.moved_this_turn = True
             
 
             for drone in self.drones:
         
-                if drone.delivered or drone.in_transit:
+                if drone.delivered or drone.in_transit or drone.moved_this_turn:
                     continue
     
                 if drone.path_index >= len(drone.path) - 1:
@@ -266,6 +268,7 @@ class Graph(BaseModel):
 
                         if drone.position == self.end_hub.name:
                             drone.delivered = True
+                        drone.moved_this_turn = True
 
                     else:
                         continue

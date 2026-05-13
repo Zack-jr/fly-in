@@ -5,7 +5,7 @@ PIP = $(VENV)/bin/pip
 
 all:
 	clear
-	python3 fly-in.py maps/easy/03_basic_capacity.txt
+	python3 fly-in.py maps/medium/02_circular_loop.txt
 
 install:
 	python3 -m venv $(VENV)
