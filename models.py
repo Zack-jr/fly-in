@@ -149,6 +149,12 @@ class Graph(BaseModel):
             drone.path = [self.zones[name] for name in path_names]
             drone.position = self.start_hub.name
 
+        unique_paths = set()
+        for drone in self.drones:
+            signature = tuple(z.name for z in drone.path)
+            unique_paths.add(signature)
+
+        print(f"unique paths: {len(unique_paths)}")
     # GET NEIGHBORING ZONES FOR A SPECIFIC ZONE
     def get_neighbors(self, zone) -> list[Zone]:
         return self.adjacency[zone.name]
@@ -313,7 +319,7 @@ class Graph(BaseModel):
                 # get cost for movement to neighbor
                 new_cost = current_cost + neighbor.get_movement_cost()
                 if neighbor.name in used_zones:
-                    new_cost += 1
+                    new_cost += 0.5
 
                 # if new cost is better than previous cost
                 if new_cost < distances[neighbor.name]:
