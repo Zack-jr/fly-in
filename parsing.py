@@ -1,4 +1,4 @@
-from models import Zone, Connection, Graph
+from models import Zone, Connection, Graph, ZoneType
 
 class Parser():
     # READS THE .TXT FILES
@@ -60,7 +60,7 @@ class Parser():
                 key, value = item.split("=")
                 meta_dict[key] = value
 
-            return Zone(hub_type=prefix, name=name, x=x, y=y, color=meta_dict.get("color", None), max_drones=meta_dict.get("max_drones", 1))
+            return Zone(hub_type=prefix, name=name, x=x, y=y, color=meta_dict.get("color", None), max_drones=meta_dict.get("max_drones", 1), zone_type=meta_dict.get("zone", "normal"))
 
         if line.startswith("connection"):
             _, rest = line.split(":", 1)

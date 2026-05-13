@@ -3,16 +3,32 @@ from collections import defaultdict
 from typing import List
 from enum import Enum
 from itertools import cycle
+from colorama import Fore, Style
 import heapq
 
 
 # ASSIGN A COST TO EACH ZONE_TYPE
 # PYDANTIC WILL CONVERT STR INTO ENUM
 class ZoneType(Enum):
-    normal = 1
-    priority = 1
-    restricted = 2
-    blocked = float('inf')
+    normal = "normal"
+    priority = "priority"
+    restricted = "restricted"
+    blocked = "blocked"
+
+    def movement_cost(self) -> float:
+
+        costs = {
+            ZoneType.normal : 1,
+            ZoneType.restricted : 2,
+            ZoneType.blocked : float('inf'),
+            ZoneType.priority : 1,
+        }
+
+        return costs[self]
+
+class Colors(Enum):
+    RED = "\033[31m"
+    RESET = "\033[0m"
 
 
 # ZONE (OR HUB) INSIDE THE GRAPH
@@ -31,10 +47,14 @@ class Zone(BaseModel):
     def validate_zone(self):
         if self.max_drones < 0:
             raise ValueError(f"Invalid max_drones count: {self.max_drones}.")
+        
+        if isinstance(self.zone_type, str):
+            self.zone_type = ZoneType[self.zone_type]
+    
         return self
 
     def get_movement_cost(self):
-        return self.zone_type.value
+        return self.zone_type.movement_cost()
 
 #   CONNECTION (LINKS) BETWEEN ZONES
 class Connection(BaseModel):
@@ -42,11 +62,14 @@ class Connection(BaseModel):
     zone2: str
     max_link_capacity: int = 1
     current_drones: int = 0
+    name : str = ""
 
     @model_validator(mode="after")
     def validate_connection(self):
         if self.max_link_capacity < 0:
             raise ValueError("max_link_capacity cannot be negative")
+
+        self.name = '-'.join(sorted([self.zone1, self.zone2]))
 
         return self
 
@@ -59,6 +82,8 @@ class Drone():
         self.path : List[Zone] = []
         self.delivered : bool = False
         self.path_index : int = 0
+        self.in_transit: bool = False
+        self.transit_destination : Zone = None
 
 
 
@@ -122,7 +147,6 @@ class Graph(BaseModel):
             path_names = next(path_cycle)
             drone.path = [self.zones[name] for name in path_names]
             drone.position = self.start_hub.name
-            print(f"{drone.ID} path: {[z.name for z in drone.path]}")
 
     # GET NEIGHBORING ZONES FOR A SPECIFIC ZONE
     def get_neighbors(self, zone) -> list[Zone]:
@@ -157,40 +181,94 @@ class Graph(BaseModel):
         # while the drones are not all delivered
         while not all(drone.delivered for drone in self.drones):
 
-
-            # set every connection drone count to 0 every turn
+            # RESET EVERY TURN
             for conn in self.connections:
                 conn.current_drones = 0
+
+            for zone in self.zones.values():
+                zone.current_drones = 0
+
+
             # for every drone
             for drone in self.drones:
-                
-                # if it's delivered -> skip
-                if drone.delivered:
-                    continue
+    
+                # if the drone is not delivered
+                if not drone.delivered:
+                    if drone.in_transit:
+                        drone.transit_destination.current_drones += 1
+                    else:
+                        self.zones[drone.position].current_drones += 1
+    
 
+                # if we reached the end for a drone, continue
+
+
+
+            for drone in self.drones:
+
+                if drone.delivered or not drone.in_transit:
+                    continue
+                
                 previous_zone = drone.path[drone.path_index]
                 next_zone = drone.path[drone.path_index + 1]
 
-                # get connection dict access by reference
                 key = tuple(sorted([previous_zone.name, next_zone.name]))
                 connection = self.connection_map[key]
-
-                # if the next zone has the capacity and the connection allows it
-                if (connection.current_drones < connection.max_link_capacity
-                    and next_zone.current_drones < next_zone.max_drones):
+    
+                if drone.in_transit:
                     connection.current_drones += 1
-                    drone.position = next_zone.name
+                    drone.position = drone.transit_destination.name
                     drone.path_index += 1
-                    next_zone.current_drones += 1
-                    previous_zone.current_drones -= 1
+                    drone.in_transit = False
+                    drone.transit_destination = None
                     turn_movements += (f"{drone.ID}-{drone.position} ")
 
                     if drone.position == self.end_hub.name:
                         drone.delivered = True
+            
 
-                # NEED TO HANDLE CONNECTIONS
-                else:
+            for drone in self.drones:
+        
+                if drone.delivered or drone.in_transit:
                     continue
+    
+                if drone.path_index >= len(drone.path) - 1:
+                    drone.delivered = True
+                    continue
+
+                previous_zone = drone.path[drone.path_index]
+                next_zone = drone.path[drone.path_index + 1]
+                key = tuple(sorted([previous_zone.name, next_zone.name]))
+                connection = self.connection_map[key]
+                
+                if next_zone.zone_type == ZoneType.restricted:
+                    if (connection.current_drones < connection.max_link_capacity
+                        and next_zone.current_drones < next_zone.max_drones):
+                        connection.current_drones += 1
+                        next_zone.current_drones += 1
+                        drone.in_transit = True
+                        drone.transit_destination = next_zone
+                        turn_movements += f"{drone.ID}-{Colors.RED.value}{connection.name}{Colors.RESET.value} "
+                        previous_zone.current_drones -= 1
+
+            # REGULAR SCENARIO
+                else:
+
+                    # if the next zone has the capacity and the connection allows it
+                    if (connection.current_drones < connection.max_link_capacity
+                        and next_zone.current_drones < next_zone.max_drones):
+                        connection.current_drones += 1
+                        drone.position = next_zone.name
+                        drone.path_index += 1
+                        next_zone.current_drones += 1
+                        previous_zone.current_drones -= 1
+                        turn_movements += (f"{drone.ID}-{drone.position} ")
+
+                        if drone.position == self.end_hub.name:
+                            drone.delivered = True
+
+                    else:
+                        continue
 
             print(turn_movements)
             turn_count += 1
