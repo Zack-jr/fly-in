@@ -1,11 +1,10 @@
 from typing import List, Dict
 from pydantic import BaseModel, Field, model_validator
-from models.zone import Zone, ZoneType
+from models.zone import Zone, ZoneType, Colors
 from models.connection import Connection
 from models.drone import Drone
 from collections import defaultdict
 from itertools import cycle
-from utils.colors import Colors
 import heapq
 
 # ENTIRE GRAPH STRUCTURE
@@ -181,7 +180,7 @@ class Graph(BaseModel):
                         next_zone.current_drones += 1
                         drone.in_transit = True
                         drone.transit_destination = next_zone
-                        turn_movements += f"{drone.ID}-{Colors.RED.value}{connection.name}{Colors.RESET.value} "
+                        turn_movements += f"{drone.ID}-{connection.name} "
                         previous_zone.current_drones -= 1
 
             # REGULAR SCENARIO
@@ -195,7 +194,7 @@ class Graph(BaseModel):
                         drone.path_index += 1
                         next_zone.current_drones += 1
                         previous_zone.current_drones -= 1
-                        turn_movements += (f"{drone.ID}-{drone.position} ")
+                        turn_movements += (f"{drone.ID}-{Colors.get_colors(next_zone.color)}{drone.position} {Colors.get_colors(Colors.reset)}")
 
                         if drone.position == self.end_hub.name:
                             drone.delivered = True
