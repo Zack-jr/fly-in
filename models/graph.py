@@ -1,92 +1,12 @@
-from pydantic import BaseModel, model_validator, ValidationError, Field
+from typing import List, Dict
+from pydantic import BaseModel, Field, model_validator
+from models.zone import Zone, ZoneType
+from models.connection import Connection
+from models.drone import Drone
 from collections import defaultdict
-from typing import List
-from enum import Enum
 from itertools import cycle
-from colorama import Fore, Style
+from utils.colors import Colors
 import heapq
-
-
-# ASSIGN A COST TO EACH ZONE_TYPE
-# PYDANTIC WILL CONVERT STR INTO ENUM
-class ZoneType(Enum):
-    normal = "normal"
-    priority = "priority"
-    restricted = "restricted"
-    blocked = "blocked"
-
-    def movement_cost(self) -> float:
-
-        costs = {
-            ZoneType.normal : 1,
-            ZoneType.restricted : 2,
-            ZoneType.blocked : float('inf'),
-            ZoneType.priority : 1,
-        }
-
-        return costs[self]
-
-class Colors(Enum):
-    RED = "\033[31m"
-    RESET = "\033[0m"
-
-
-# ZONE (OR HUB) INSIDE THE GRAPH
-# DRONES NAVIGATE THROUGH ZONES
-class Zone(BaseModel):
-    name: str
-    x: int
-    y: int
-    zone_type: ZoneType = ZoneType.normal
-    color: str | None = None
-    max_drones: int = 1
-    hub_type: str
-    current_drones: int = 0
-
-    @model_validator(mode="after")
-    def validate_zone(self):
-        if self.max_drones < 0:
-            raise ValueError(f"Invalid max_drones count: {self.max_drones}.")
-        
-        if isinstance(self.zone_type, str):
-            self.zone_type = ZoneType[self.zone_type]
-    
-        return self
-
-    def get_movement_cost(self):
-        return self.zone_type.movement_cost()
-
-#   CONNECTION (LINKS) BETWEEN ZONES
-class Connection(BaseModel):
-    zone1: str
-    zone2: str
-    max_link_capacity: int = 1
-    current_drones: int = 0
-    name : str = ""
-
-    @model_validator(mode="after")
-    def validate_connection(self):
-        if self.max_link_capacity < 0:
-            raise ValueError("max_link_capacity cannot be negative")
-
-        self.name = '-'.join(sorted([self.zone1, self.zone2]))
-
-        return self
-
-# DRONE
-# NAVIGATES ZONE BY ZONE
-class Drone():
-    def __init__(self, drone_id: str):
-        self.ID = drone_id
-        self.position = ""
-        self.path : List[Zone] = []
-        self.delivered : bool = False
-        self.path_index : int = 0
-        self.in_transit: bool = False
-        self.transit_destination : Zone = None
-        self.moved_this_turn : bool = False
-
-
 
 # ENTIRE GRAPH STRUCTURE
 # IS COMPOSED BY ZONES AND CONNECTIONS
@@ -111,12 +31,16 @@ class Graph(BaseModel):
         self.adjacency_maker()
         return self
 
-    def find_paths(self) -> List[str]:
-        
+    def find_paths(self) -> List[List[str]]:
+        """Generates as many paths as possible in order
+        to assign them to n number of drones"""
+
+        # KEEP TRACK OF THE USED ZONES TO ADD
+        # A PENALTY SYSTEM TO DIJKSTRA
         used_zones : set[str] = set()
         paths = []
 
-        # loop until we find the same path twice
+        # LOOP UNTIL WE GENERATE THE SAME PATH TWICE
         while True:
 
             path = self.dijkstra(self.start_hub, self.end_hub, used_zones)
@@ -127,6 +51,10 @@ class Graph(BaseModel):
                 break
         
             paths.append(paths_names)
+
+            # EXCLUDE FIRST AND LAST ZONES
+            # BECAUSE THEY SHOULD NOT BE PENALIZED
+
             for zone in path[1:-1]:
                 used_zones.add(zone.name)
 
@@ -135,9 +63,11 @@ class Graph(BaseModel):
     # CREATE AND INITIALIZE ZONES IN START HUB POSITION
     def create_drones(self) -> None:
 
-        used_zones : set[str] = set()
-        path = self.find_paths()
-        path_cycle = cycle(path)
+        # DISTRIBUTE THE PATHS TO THE DRONE
+        # WITH A CYCLIC PATTERN
+
+        paths = self.find_paths()
+        path_cycle = cycle(paths)
 
         for i in range(1, self.drone_count + 1):
             self.drones.append(Drone(f"D{i}"))
@@ -149,12 +79,7 @@ class Graph(BaseModel):
             drone.path = [self.zones[name] for name in path_names]
             drone.position = self.start_hub.name
 
-        unique_paths = set()
-        for drone in self.drones:
-            signature = tuple(z.name for z in drone.path)
-            unique_paths.add(signature)
 
-        print(f"unique paths: {len(unique_paths)}")
     # GET NEIGHBORING ZONES FOR A SPECIFIC ZONE
     def get_neighbors(self, zone) -> list[Zone]:
         return self.adjacency[zone.name]
@@ -295,7 +220,7 @@ class Graph(BaseModel):
         if used_zones is None:
             used_zones = set()
             
-        # ASSIGN A COST TO EACH DISTANCE
+        # ASSIGN A COST TO EACH zone
         for name in self.zones.keys():
             distances[name] = float('inf')
 
@@ -343,8 +268,3 @@ class Graph(BaseModel):
         path.reverse()
 
         return path
-
-#   - Don't release all drones at once
-#   - Send them gradually(avoid congestion)
-
-# Paths -> Assign -> Simulate with constraints

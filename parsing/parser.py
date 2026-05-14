@@ -1,4 +1,6 @@
-from models import Zone, Connection, Graph, ZoneType
+from models.zone import Zone, ZoneType
+from models.connection import Connection
+from models.graph import Graph
 
 class Parser():
     # READS THE .TXT FILES
