@@ -101,6 +101,27 @@ class Graph(BaseModel):
         self.adjacency = adjacency_dict
         self.connection_map = connection_dict
 
+    def reset_items(self):
+
+        for conn in self.connections:
+            conn.current_drones = 0
+
+        for zone in self.zones.values():
+            zone.current_drones = 0
+
+        for drone in self.drones:
+            drone.moved_this_turn = False
+
+    def get_movement_context(self, drone) -> tuple[Zone, Zone, Connection]:
+
+
+        previous_zone = drone.path[drone.path_index]
+        next_zone = drone.path[drone.path_index + 1]
+
+        key = tuple(sorted([previous_zone.name, next_zone.name]))
+        connection = self.connection_map[key]
+
+        return previous_zone, next_zone, connection
 
     # SIMULATE DRONE ROUTE
     def simulate(self) -> None:
@@ -113,38 +134,15 @@ class Graph(BaseModel):
         while not all(drone.delivered for drone in self.drones):
 
             # RESET EVERY TURN
-            for conn in self.connections:
-                conn.current_drones = 0
+            self.reset_items()
 
-            for zone in self.zones.values():
-                zone.current_drones = 0
-
-            for drone in self.drones:
-                drone.moved_this_turn = False
-
-            # for every drone
-            for drone in self.drones:
-    
-                # if the drone is not delivered
-                if not drone.delivered:
-                    if drone.in_transit:
-                        drone.transit_destination.current_drones += 1
-                    else:
-                        self.zones[drone.position].current_drones += 1
-    
-                # if we reached the end for a drone, continue
-
-
+            # HANDLE DRONES AT THE END OF TRANSIT
             for drone in self.drones:
 
                 if drone.delivered or not drone.in_transit or drone.moved_this_turn:
                     continue
 
-                previous_zone = drone.path[drone.path_index]
-                next_zone = drone.path[drone.path_index + 1]
-
-                key = tuple(sorted([previous_zone.name, next_zone.name]))
-                connection = self.connection_map[key]
+                previous_zone, next_zone, connection = self.get_movement_context(drone)
     
                 if drone.in_transit:
                     connection.current_drones += 1
@@ -159,6 +157,7 @@ class Graph(BaseModel):
                     drone.moved_this_turn = True
             
 
+            # PUT DRONE INTO TRANSIT
             for drone in self.drones:
         
                 if drone.delivered or drone.in_transit or drone.moved_this_turn:
@@ -168,10 +167,7 @@ class Graph(BaseModel):
                     drone.delivered = True
                     continue
 
-                previous_zone = drone.path[drone.path_index]
-                next_zone = drone.path[drone.path_index + 1]
-                key = tuple(sorted([previous_zone.name, next_zone.name]))
-                connection = self.connection_map[key]
+                previous_zone, next_zone, connection = self.get_movement_context(drone)
                 
                 if next_zone.zone_type == ZoneType.restricted:
                     if (connection.current_drones < connection.max_link_capacity
@@ -194,7 +190,11 @@ class Graph(BaseModel):
                         drone.path_index += 1
                         next_zone.current_drones += 1
                         previous_zone.current_drones -= 1
-                        turn_movements += (f"{drone.ID}-{Colors.get_colors(next_zone.color)}{drone.position} {Colors.get_colors(Colors.reset)}")
+                        if next_zone.color == Colors.rainbow:
+                            turn_movements += (f"{drone.ID}-{Colors.rainbow_text(drone.position)}")
+                        else:
+                            color = Colors.get_colors(next_zone.color)
+                        turn_movements += (f"{drone.ID}-{color}{drone.position} {Colors.get_colors(Colors.reset)}")
 
                         if drone.position == self.end_hub.name:
                             drone.delivered = True

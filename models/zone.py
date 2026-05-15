@@ -31,6 +31,7 @@ class Colors(Enum):
     black = "black"
     magenta = "magenta"
 
+    violet = "violet"
     gold = "gold"
     orange = "orange"
     purple = "purple"
@@ -39,7 +40,8 @@ class Colors(Enum):
     crimson = "crimson"
     maroon = "maroon"
     darkred = "darkred"
-    
+
+    rainbow = "rainbow"
     reset = "\033[0m"
 
     def get_colors(self):
@@ -52,6 +54,7 @@ class Colors(Enum):
             Colors.black:  "\033[30m",
             Colors.magenta: "\033[35m",
 
+            Colors.violet: "\033[38;5;93m",
             Colors.gold: "\033[38;5;220m",
             Colors.orange: "\033[38;5;208m",
             Colors.purple: "\033[38;5;129m",
@@ -64,6 +67,14 @@ class Colors(Enum):
     }
 
         return colors[self]
+    
+    def rainbow_text(text: str) -> str:
+        raimbow_colors = ["\033[31m", "\033[33m", "\033[32m", "\033[36m", "\033[34m", "\033[35m"]
+        result = ""
+        for i, char in enumerate(text):
+            result += raimbow_colors[i % len(raimbow_colors)] + char
+
+        return result + "\033[0m"
 
 
 # ZONE (OR HUB) INSIDE THE GRAPH
